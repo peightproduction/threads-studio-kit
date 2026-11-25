@@ -49,9 +49,9 @@ Goal: a Meta app with the **Access the Threads API** use case, all six permissio
 ## Stage C: Deploy their own copy (steps 12 to 15)
 12. Open this one-click link (it copies the code into their own GitHub and creates their Vercel project):
 ```
-https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fpeightproduction%2Fthreads-studio&project-name=threads-studio&repository-name=threads-studio&env=THREADS_APP_ID,THREADS_APP_SECRET,MCP_TOKEN,TICK_TOKEN&envDescription=Threads%20App%20ID%20and%20secret%20from%20your%20Meta%20app%3B%20MCP_TOKEN%20and%20TICK_TOKEN%20are%20two%20different%20long%20random%20values%20(24%2B%20characters)
+https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fpeightproduction%2Fthreads-studio-connector&project-name=threads-studio&repository-name=threads-studio&env=THREADS_APP_ID,THREADS_APP_SECRET,MCP_TOKEN,TICK_TOKEN&envDescription=Threads%20App%20ID%20and%20secret%20from%20your%20Meta%20app%3B%20MCP_TOKEN%20and%20TICK_TOKEN%20are%20two%20different%20long%20random%20values%20(24%2B%20characters)
 ```
-If the link does not open or Vercel says it cannot find the repository, use the manual way: open `https://github.com/peightproduction/threads-studio`, press **Fork** to copy it into their GitHub, then in Vercel press **Add New > Project**, **Import** that repository.
+If the link does not open or Vercel says it cannot find the repository, use the manual way: open `https://github.com/peightproduction/threads-studio-connector`, press **Fork** to copy it into their GitHub, then in Vercel press **Add New > Project**, **Import** that repository.
 13. Vercel asks to connect GitHub (allow it) and to name the new repository: keep `threads-studio` and keep it **private**. Then it shows **Environment Variables**. Add these four, names exactly as written, values from their note, then press **Deploy**:
    - `THREADS_APP_ID`
    - `THREADS_APP_SECRET`

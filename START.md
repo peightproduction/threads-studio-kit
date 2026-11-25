@@ -236,7 +236,7 @@ cal: "Rancangan 7 hari", free: "Cadangan masa (belum dijadual)", put: "Letak", g
 noM: "Belum ada nombor tontonan. Hantar tangkapan skrin Insights kepada Claude.", winsH: "Post paling menjadi (berbanding median anda)", vsE: "engage", comments: "komen", ask: "Salin soalan untuk Claude", why: "Kenapa menang", reuse: "Boleh guna lagi", hi_views: "Tontonan tinggi", hi_eng: "Paling engage", hi_leads: "Paling convert", old_strong: "Lama tapi kuat",
 voice: "Gaya", pillars: "Tema", facts: "Fakta sebenar", lessons: "Pelajaran", saveH: "Simpan (untuk chat lain)", saveP: "Salin STATE, lalu tampal selepas fail START bila mula chat baru.", state: "Salin STATE", paste: "Tampal data baharu daripada Claude:", apply: "Guna", bad: "Data tak sah.", none: "(tiada)",
 dow: ["Isn", "Sel", "Rab", "Kha", "Jum", "Sab", "Ahd"], every: "Semua", acc: "Orang yang saya ikut", men: "Disebut sahaja", fol: "Pengikut sahaja", askP: "Analisis kenapa post ini menang dan apa yang boleh saya guna semula. Post: \"{t}\" ({v} tontonan, {l} like, {r} komen)." };
-Object.assign(TX, { zHint: "Hantar melalui Zernio: tekan butang, tampal dalam chat dengan Claude, tekan Enter. Claude yang hantar.", zPost: "Post sekarang (Zernio)", zSched: "Jadual (Zernio)", zDraft: "Simpan draf (Zernio)", zUpd: "Kemas kini di Zernio", zDel: "Padam di Zernio" });
+Object.assign(TX, { zNoBridge: "Dashboard ni tak boleh hubungi Zernio terus dalam chat ni, jadi arahan disalin: tampal dalam chat dan Claude yang hantar.", zNoId: "Dashboard ni tak ada ID akaun Zernio. Cakap kepada Claude: bina semula dashboard.", zWhen: "Masa untuk Jadual", zAsk: "Zernio tolak. Claude cuba betulkan permintaan...", zManual: "Arahan disalin: tampal dalam chat dan Claude yang hantar.", zSending: "Menghantar ke Zernio...", zFail: "Zernio gagal: ", zPosted: "Siap, dah post di Threads ✓", zSaved: "Siap, disimpan di Zernio ✓", zUpdated: "Siap, dikemas kini ✓", zUnsure: "Zernio menjawab tapi tak jelas sama ada dah siap. Semak di Threads dulu sebelum tekan lagi.", zReauth: "Sambungan Zernio tamat. Sambung semula di Settings, Connectors.", zRej: "Zernio tolak ({m}). Arahan disalin: tampal dalam chat supaya Claude cuba cara lain.", zNow: "Post di Threads", zHint: "Butang ini hantar terus ke Zernio. Kalau Claude tak benarkan, ia salin arahan: tampal dalam chat dan tekan Enter.", zSched: "Jadual (Zernio)", zDraft: "Simpan draf (Zernio)", zUpd: "Kemas kini di Zernio", zDel: "Padam di Zernio" });
 const T = (k, o) => { const s = (d.labels && d.labels[k]) ?? TX[k]; return typeof s === "string" && o ? s.replace(/\{(\w+)\}/g, (_, x) => o[x]) : s ?? k; };
 const h = (tag, a, ...k) => {
 const e = document.createElement(tag);
@@ -287,10 +287,61 @@ if (x.reply_control && x.reply_control !== "everyone") L.push("Balas: " + x.repl
 if (x.image && safeUrl(x.image.url)) L.push("Gambar: " + safeUrl(x.image.url));
 return L.join("\n");
 };
+const mcpOf = (() => { let p; return async () => { if (p) return p; try { const m = window.claude && window.claude.use ? await window.claude.use("mcp") : null; if (m && m.callTool) p = m; } catch {} return p || null; }; })();
+const smpOf = (() => { let p; return async () => { if (p) return p; try { const s = window.claude && window.claude.use ? await window.claude.use("sample") : null; if (typeof s === "function") p = s; } catch {} return p || null; }; })();
+const zact = async (kind, x, btn, msg) => {
+const z = d.zernio, say = (t, c) => { x.zs = { t, c: c || "note" }; msg.className = c || "note"; msg.textContent = t; }, cp = (t, c) => { copy(zcmd(kind, x), btn); if (t) say(t, c); };
+const m = await mcpOf(); if (!m) return cp(T("zNoBridge")); if (!z.id) return cp(T("zNoId"));
+const upd = kind === "upd", del = kind === "del", sv = z.server || "Zernio", tl = Object.assign({ create: "posts_create", update: "posts_update", delete: "posts_delete" }, z.tools)[upd ? "update" : del ? "delete" : "create"];
+if ((!del && x.reply_control && x.reply_control !== "everyone") || (kind === "sched" && !x.when) || (upd && (x.parts || []).length)) return cp(T("zManual"));
+let sc = ""; try { sc = JSON.stringify((await m.describeTool(sv, tl)).inputSchema || {}); } catch {}
+const key = ["postId", "post_id", "id"].find((k) => sc.includes('"' + k + '"')) || "postId";
+if (sc && ((!del && !sc.includes('"content"')) || (!upd && !del && !sc.includes('"platforms"')))) return cp(T("zManual"));
+const txt = String(x.text || "").trim(), th = (x.parts || []).length ? [x.text, ...x.parts].map((c) => ({ content: String(c).trim() })) : null, pl = { platform: "threads", accountId: z.id }, pd = {};
+if (th) pd.threadItems = th; if (x.tag) pd.topic_tag = x.tag; if (th || x.tag) pl.platformSpecificData = pd;
+const at = x.when ? new Date(x.when).toISOString() : "", im = x.image && safeUrl(x.image.url);
+const inp = del ? { [key]: x.zid } : upd ? { [key]: x.zid, content: txt, ...(at ? { scheduledFor: at } : {}) } : { content: txt, platforms: [pl], ...(im ? { mediaItems: [{ type: "image", url: im }] } : {}), ...(kind === "post" ? { publishNow: true } : kind === "sched" ? { scheduledFor: at } : { isDraft: true }) };
+btn.disabled = true; say(T("zSending"));
+const fin = (r) => {
+const p = r.payload ?? r.structuredContent ?? r.content, s = typeof p === "string" ? p : JSON.stringify(p || {}), st = (/"status"\s*:\s*"([a-z_]+)"/i.exec(s) || [])[1] || "";
+const id = p && (p._id || p.id || p.postId || (p.post && (p.post._id || p.post.id))), url = (/https:\/\/www\.threads\.(?:com|net)\/[^"\s\\]+/.exec(s) || [])[0];
+if (r.isError || /^(failed|error|partial)$/i.test(st)) say(T("zFail") + s.slice(0, 220), "err");
+else if (del) { d.drafts = d.drafts.filter((y) => y !== x); render(); }
+else if (upd) say(T("zUpdated"));
+else if (kind === "post") { if (st === "published" || url) { x.sent = 1; say(T("zPosted") + (url ? " " + url : "")); } else say(T("zUnsure"), "wrn"); }
+else if (id) { x.zid = String(id); say(T("zSaved")); render(); } else say(T("zSaved"));
+};
+const assist = async (why) => {
+const sm = await smpOf(); if (!sm) return false;
+let n = 0, got = null;
+const tools = [{ name: "describe", description: "Read the input schema of the Zernio tool", inputSchema: { type: "object", properties: {} }, execute: async () => m.describeTool(sv, tl) },
+{ name: "send", description: "Call the Zernio tool with this input", inputSchema: { type: "object", properties: { input: { type: "object" } }, required: ["input"] }, execute: async (a) => {
+const j = JSON.stringify((a && a.input) || {});
+if (got || n >= 2) throw new Error("no more calls");
+if (!del && !j.includes(txt.slice(0, 30))) throw new Error("the post text must stay exactly as given");
+if (kind !== "post" && /publishNow\W+true/i.test(j)) throw new Error("this action must not publish now");
+n++; got = await m.callTool(sv, tl, a.input); return got; } }];
+await sm("Zernio refused this " + kind + " request (" + why + "). Rejected input: " + JSON.stringify(inp) + "\nCall describe to read the tool's input schema, then call send with a corrected input that keeps the same text, account and action (" + (kind === "post" ? "publish now" : kind === "sched" ? "schedule at " + at : kind === "draft" ? "save as draft" : kind) + "). Never change the text. Reply ok when done.", { tools, modelTier: "quick", cache: false });
+if (got) { fin(got); return true; } return false;
+};
+try { fin(await m.callTool(sv, tl, inp)); } catch (e) {
+const c = e && e.code;
+if (c === "needs_reauth") say(T("zReauth"), "err");
+else if (c === "tool_error") { const why = String(e.message || "").slice(0, 160); say(T("zAsk")); let ok = false; try { ok = await assist(why); } catch {} if (!ok) cp(T("zRej", { m: why }), "err"); }
+else if (["server_not_connected", "not_in_manifest", "blocked_by_policy", "approval_required", "selection_required", "consent_required", "capability_disabled"].includes(c)) cp(T("zManual") + " [" + c + "]");
+else say(T("zUnsure"), "wrn");
+} finally { btn.disabled = !!x.sent; }
+};
 const draftCard = (x) => {
-const cnt = h("span", { class: "cnt" }), errs = h("div"), parts = h("div");
+const cnt =h("span", { class: "cnt" }), errs = h("div"), parts = h("div");
 const a = h("a", { class: "btn go", target: "_blank", rel: "noopener noreferrer" }, T("post"));
-const tag = h("input", { type: "text", value: x.tag || "", placeholder: T("tag"), maxlength: 60, "aria-label": T("tag") });
+const zmsg = h("div", { class: x.zs ? x.zs.c : "note", role: "status" }, x.zs ? x.zs.t : "");
+const zb = (label, kind, cls = "s") => { let armed = 0; return h("button", { class: cls, type: "button", onclick: (e) => { if (kind === "del" && !armed) { const b = e.currentTarget; armed = 1; b.textContent = T("sure"); setTimeout(() => { armed = 0; b.textContent = label; }, 4000); return; } zact(kind, x, e.currentTarget, zmsg); } }, label); };
+const zp = zb(T("zNow"), "post", "go");
+const wIn = h("input", { type: "datetime-local", "aria-label": T("zWhen") }), pad = (n) => String(n).padStart(2, "0");
+if (x.when) { const q = TS.parts(Date.parse(x.when), d.tz); wIn.value = q.date + "T" + pad(q.hour) + ":" + pad(q.minute); }
+wIn.addEventListener("change", () => { const w = /^(\d{4}-\d\d-\d\d)T(\d\d):(\d\d)$/.exec(wIn.value); if (w) x.when = new Date(TS.toUtc(w[1], +w[2], +w[3], d.tz)).toISOString(); else delete x.when; });
+const tag =h("input", { type: "text", value: x.tag || "", placeholder: T("tag"), maxlength: 60, "aria-label": T("tag") });
 const rc = h("select", { "aria-label": T("reply") }, TS.REPLY.map((v, i) => h("option", { value: v }, T(["every", "acc", "men", "fol"][i]))));
 rc.value = x.reply_control || "everyone";
 const refresh = () => {
@@ -298,7 +349,7 @@ const e = TS.lintDraft([x.text, ...(x.parts || [])], x.tag || "", !!x.image), n 
 cnt.textContent = n + "/500"; cnt.className = "cnt" + (n > 500 ? " over" : "");
 set(errs, e.map((c) => h("div", { class: "err" }, T("e_" + c))), [x.text, ...(x.parts || [])].some((t) => /\[ISI:/i.test(t)) && h("div", { class: "wrn" }, T("e_blank")));
 a.setAttribute("href", e.length ? "#" : TS.intentUrl(x.text, { tag: x.tag, reply_control: x.reply_control }));
-a.className = "btn go" + (e.length ? " off" : "");
+a.className = "btn go" + (e.length ? " off" : ""); zp.disabled = e.length > 0 || !!x.sent;
 if (x.parts && x.parts.length) {
 const sc = h("input", { type: "text", value: x.p1 || "", placeholder: "https://www.threads.com/@.../post/...", "aria-label": T("p1") }), links = h("div", { class: "row", style: "margin-top:6px" });
 const draw = () => { const code = TS.shortcodeOf(x.p1 || ""); set(links, code ? x.parts.map((p, i) => h("a", { class: "btn s", target: "_blank", rel: "noopener noreferrer", href: TS.intentUrl(p, { reply_post_shortcode: code, reply_control: x.reply_control }) }, T("postPart", { n: i + 2 }))) : []); };
@@ -315,9 +366,9 @@ const del = h("button", { class: "s warn", type: "button", onclick: (e) => { if 
 const done = h("button", { class: "s", type: "button", onclick: () => { d.posts.push({ id: uid(), at: now().toISOString(), text: x.text }); d.drafts = d.drafts.filter((y) => y !== x); render(); } }, T("posted"));
 const card = h("div", { class: "card" }, h("div", { class: "row between" }, x.when ? h("span", { class: "chip b" }, fmt(x.when)) : h("span"), cnt), ta, pts,
 h("div", { class: "row", style: "margin-top:6px" }, h("div", { style: "flex:1;min-width:120px" }, tag), h("div", { style: "flex:1;min-width:120px" }, rc)), errs, parts, imgBlock(x), !x.image && h("div", { class: "row", style: "margin-top:8px" }, cbtn(T("askPoster"), () => T("pPoster", { t: TS.hookOf(x.text) || "..." }))),
-h("div", { class: "row", style: "margin-top:8px" }, !x.zid && a, cbtn(T("copy"), () => x.text), !x.zid && cbtn(T("link"), () => a.getAttribute("href")), done, del), // a draft already in Zernio must not also offer the manual post button (a second post)
-d.zernio && h("div", { class: "zrow", style: "margin-top:10px;padding-top:8px;border-top:1px solid var(--line,#ddd)" }, h("div", { class: "note" }, T("zHint")),
-h("div", { class: "row", style: "margin-top:6px" }, ...(x.zid ? [cbtn(T("zUpd"), () => zcmd("upd", x), "go"), cbtn(T("zDel"), () => zcmd("del", x), "s warn")] : [cbtn(T("zPost"), () => zcmd("post", x), "go"), cbtn(T("zSched"), () => zcmd("sched", x)), cbtn(T("zDraft"), () => zcmd("draft", x))]))));
+h("div", { class: "row", style: "margin-top:8px" }, !x.zid && (d.zernio ? zp : a), cbtn(T("copy"), () => x.text), !x.zid && !d.zernio && cbtn(T("link"), () => a.getAttribute("href")), done, del), // a draft already in Zernio must not also offer a post button (a second post); with Zernio on, nothing opens the Threads composer
+d.zernio && h("div", { class: "zrow", style: "margin-top:10px;padding-top:8px;border-top:1px solid var(--line,#ddd)" }, h("div", { class: "note" }, T("zHint")), !x.zid && h("div", { class: "row", style: "margin-top:6px" }, h("span", { class: "note" }, T("zWhen")), wIn),
+h("div", { class: "row", style: "margin-top:6px" }, ...(x.zid ? [zb(T("zUpd"), "upd", "go"), zb(T("zDel"), "del", "s warn")] : [zb(T("zSched"), "sched"), zb(T("zDraft"), "draft")])), zmsg));
 refresh();
 return card;
 };

@@ -46,10 +46,10 @@ Tell them honestly: Claude's Free plan allows **one** custom connector, so this 
 - Recent published posts: list posts filtered to published (newest first, up to about 100). Each post gives text, time and a Zernio post id. Keep their own posts only, newest 200 at most.
 - Numbers: find Zernio's analytics tool (search for it if it is not listed) and ask for the Threads account's post analytics. Match numbers to posts: likes to `likes`, comments to `replies`, views to `views`; if Zernio gives one combined "shares" number, put it in `reposts` and leave `quotes` out. Followers: if a follower-count tool exists use it, otherwise leave `followers` out.
 - Posts already scheduled or saved as drafts in Zernio: list them too and put each in `drafts` with `zid` (its Zernio post id) and, for scheduled ones, `when` (UTC). Those cards get Update / Delete buttons instead of Post / Schedule.
-- Also fill `voice` (2-3 short observations from their posts), `pillars` (from their one-line description), `facts` (only what they told you), `goal`, `tz`, `handle`, `brand`, and `"zernio":{"account":"<handle>"}` (this switches the Zernio buttons on).
+- Also fill `voice` (2-3 short observations from their posts), `pillars` (from their one-line description), `facts` (only what they told you), `goal`, `tz`, `handle`, `brand`, and `"zernio":{"account":"<handle>","id":"<their Zernio Threads account id from accounts_list>","server":"<the connector's display name exactly as Claude lists it, usually Zernio>"}` (this switches the Zernio buttons on; without the `id` they can only copy a command). If the real tool names for creating, updating and deleting a post differ from `posts_create`, `posts_update`, `posts_delete`, add `"tools":{"create":"...","update":"...","delete":"..."}` with the names you can see.
 If some call fails or returns nothing, say so, build with what you have, and offer `update` later. Say in one line what you found ("37 post, paling lama 3 Okt").
 
-**Step 5: build the dashboard (section 6).** Then in three lines say what each tab is for (Studio is where they make and tweak posts and posters; each card has **Post sekarang / Jadual / Simpan draf (Zernio)** buttons: press one, paste in the chat, press Enter, and you send it) and stop. Do not offer a list of options and do not write any post yet. One closing line is enough, for example: "Bila kau nak post atau poster, cakap je."
+**Step 5: build the dashboard (section 6).** Then in three lines say what each tab is for (Studio is where they make and tweak posts and posters; each card has **Post di Threads / Jadual (Zernio) / Simpan draf (Zernio)** buttons: one click sends it through Zernio, and **Post di Threads** does not open the Threads app; if Claude does not let the dashboard send, the button copies a command instead: they paste it in the chat, press Enter, and you send it) and stop. Do not offer a list of options and do not write any post yet. One closing line is enough, for example: "Bila kau nak post atau poster, cakap je."
 
 ## 4. The dashboard commands (the `Zernio:` lines)
 
@@ -92,12 +92,12 @@ How to carry them out with Zernio (field names are from its docs; confirm with t
 6. If you cannot create artifacts (error, or the feature is off): tell them to turn on **Code execution and file creation** in Settings, Capabilities. Meanwhile show the same tabs as a markdown dashboard and keep working from chat commands (`post sekarang: ...`, you do the same Zernio steps).
 7. If the user says the dashboard is **blank**, shows "Dashboard tak dapat dimuat", or only raw text: the usual cause is a `<` left unescaped in `DATA`. Rebuild from the same `DATA` with every `<` written as `\u003c`, and say in one line what you fixed.
 8. If a dashboard button does nothing (Copy included): ask them to select the text in the box that appears, or write the command yourself in chat and do it.
-9. **The dashboard cannot send to Zernio by itself** on every Claude plan (artifacts may not be allowed to call connectors on a Free plan), so its buttons copy a short instruction and the user pastes it in this chat. Say so once if they ask why.
+9. **One-click sending.** The dashboard buttons (Post di Threads, Jadual, Simpan draf, Kemas kini, Padam) send to Zernio on one click when Claude lets the page call the connector. For that, if your artifact tool has a `capabilities` field, publish the dashboard with `capabilities: {"mcp": {"servers": [{"server": "<the connector's display name>", "tools": ["<create tool>", "<update tool>", "<delete tool>"]}]}, "sample": {}}` (the real names from `DATA.zernio`) and set `DATA.zernio.server` and `DATA.zernio.tools` to match. The `sample` part lets the dashboard ask Claude to correct a request that Zernio refuses (it re-sends once, with the same text). The user may be asked once to allow each: tell them to allow. If you have no such field, or it is refused, build the dashboard normally: the buttons then copy a short `Zernio:` instruction and the user pastes it in this chat (section 4); say so in one line. Never post on your own because a button exists. When a button sends directly you are not involved; when the user pastes a `Zernio:` line, carry it out as in section 4. A button that already sent shows its own result message.
 
 ## 7. `DATA` (the only thing you change)
 
 ```json
-{"v":1,"handle":"@nama","tz":"Asia/Kuala_Lumpur","goal":1,"followers":842,"brand":"Dibuat oleh @asmosautoflow","zernio":{"account":"@nama"},
+{"v":1,"handle":"@nama","tz":"Asia/Kuala_Lumpur","goal":1,"followers":842,"brand":"Dibuat oleh @asmosautoflow","zernio":{"account":"@nama","id":"zacc_123","server":"Zernio"},
  "voice":["ayat pendek, santai"],"pillars":["cerita pelanggan","tip ringkas"],"facts":["fakta sebenar sahaja"],"lessons":[],
  "posts":[{"id":"p1","at":"2026-11-20T04:10:00Z","text":"...","views":320,"likes":14,"replies":2,"reposts":1,"leads":0}],
  "drafts":[{"id":"d1","text":"...","parts":["sambungan"],"tag":"Business","reply_control":"everyone","when":"2026-11-25T12:30:00Z","image":{"name":"poster.png","alt":"...","canva":"https://www.canva.com/design/...","url":"https://...export link..."}},
@@ -116,7 +116,7 @@ Write like the user, from their samples and notes. Open with a hook on line 1. O
 
 ## 8. Posters (images for a post): only when the user asks
 
-Usually with **Canva** if its tools are in this chat: ask in one line for anything you need (what the poster says, size; default portrait 1080x1350), create it, show it, let them tweak it (give the design's edit link, or do the edits they describe). When they are happy, export a PNG/JPG, and put `"image":{"name","alt","canva","url"}` on the draft and rebuild. The card's **Post sekarang (Zernio)** then sends `Gambar:` with the export link, which Zernio can fetch only while the link is valid: export links expire, so export again if it fails. If Canva is not available: they make it at canva.com and you put its name and link on the draft, or you make a simple PNG with code execution for them to download and use another way. Never log in to Canva for them or ask for a Canva password or token, and never put raw image bytes in the chat or in `DATA`.
+Usually with **Canva** if its tools are in this chat: ask in one line for anything you need (what the poster says, size; default portrait 1080x1350), create it, show it, let them tweak it (give the design's edit link, or do the edits they describe). When they are happy, export a PNG/JPG, and put `"image":{"name","alt","canva","url"}` on the draft and rebuild. The card's **Post di Threads** then sends `Gambar:` with the export link, which Zernio can fetch only while the link is valid: export links expire, so export again if it fails. If Canva is not available: they make it at canva.com and you put its name and link on the draft, or you make a simple PNG with code execution for them to download and use another way. Never log in to Canva for them or ask for a Canva password or token, and never put raw image bytes in the chat or in `DATA`.
 
 ## 9. Light mode (when their free limit is nearly used)
 
@@ -251,7 +251,7 @@ cal: "Rancangan 7 hari", free: "Cadangan masa (belum dijadual)", put: "Letak", g
 noM: "Belum ada nombor tontonan. Hantar tangkapan skrin Insights kepada Claude.", winsH: "Post paling menjadi (berbanding median anda)", vsE: "engage", comments: "komen", ask: "Salin soalan untuk Claude", why: "Kenapa menang", reuse: "Boleh guna lagi", hi_views: "Tontonan tinggi", hi_eng: "Paling engage", hi_leads: "Paling convert", old_strong: "Lama tapi kuat",
 voice: "Gaya", pillars: "Tema", facts: "Fakta sebenar", lessons: "Pelajaran", saveH: "Simpan (untuk chat lain)", saveP: "Salin STATE, lalu tampal selepas fail START bila mula chat baru.", state: "Salin STATE", paste: "Tampal data baharu daripada Claude:", apply: "Guna", bad: "Data tak sah.", none: "(tiada)",
 dow: ["Isn", "Sel", "Rab", "Kha", "Jum", "Sab", "Ahd"], every: "Semua", acc: "Orang yang saya ikut", men: "Disebut sahaja", fol: "Pengikut sahaja", askP: "Analisis kenapa post ini menang dan apa yang boleh saya guna semula. Post: \"{t}\" ({v} tontonan, {l} like, {r} komen)." };
-Object.assign(TX, { zHint: "Hantar melalui Zernio: tekan butang, tampal dalam chat dengan Claude, tekan Enter. Claude yang hantar.", zPost: "Post sekarang (Zernio)", zSched: "Jadual (Zernio)", zDraft: "Simpan draf (Zernio)", zUpd: "Kemas kini di Zernio", zDel: "Padam di Zernio" });
+Object.assign(TX, { zNoBridge: "Dashboard ni tak boleh hubungi Zernio terus dalam chat ni, jadi arahan disalin: tampal dalam chat dan Claude yang hantar.", zNoId: "Dashboard ni tak ada ID akaun Zernio. Cakap kepada Claude: bina semula dashboard.", zWhen: "Masa untuk Jadual", zAsk: "Zernio tolak. Claude cuba betulkan permintaan...", zManual: "Arahan disalin: tampal dalam chat dan Claude yang hantar.", zSending: "Menghantar ke Zernio...", zFail: "Zernio gagal: ", zPosted: "Siap, dah post di Threads ✓", zSaved: "Siap, disimpan di Zernio ✓", zUpdated: "Siap, dikemas kini ✓", zUnsure: "Zernio menjawab tapi tak jelas sama ada dah siap. Semak di Threads dulu sebelum tekan lagi.", zReauth: "Sambungan Zernio tamat. Sambung semula di Settings, Connectors.", zRej: "Zernio tolak ({m}). Arahan disalin: tampal dalam chat supaya Claude cuba cara lain.", zNow: "Post di Threads", zHint: "Butang ini hantar terus ke Zernio. Kalau Claude tak benarkan, ia salin arahan: tampal dalam chat dan tekan Enter.", zSched: "Jadual (Zernio)", zDraft: "Simpan draf (Zernio)", zUpd: "Kemas kini di Zernio", zDel: "Padam di Zernio" });
 const T = (k, o) => { const s = (d.labels && d.labels[k]) ?? TX[k]; return typeof s === "string" && o ? s.replace(/\{(\w+)\}/g, (_, x) => o[x]) : s ?? k; };
 const h = (tag, a, ...k) => {
 const e = document.createElement(tag);
@@ -302,10 +302,61 @@ if (x.reply_control && x.reply_control !== "everyone") L.push("Balas: " + x.repl
 if (x.image && safeUrl(x.image.url)) L.push("Gambar: " + safeUrl(x.image.url));
 return L.join("\n");
 };
+const mcpOf = (() => { let p; return async () => { if (p) return p; try { const m = window.claude && window.claude.use ? await window.claude.use("mcp") : null; if (m && m.callTool) p = m; } catch {} return p || null; }; })();
+const smpOf = (() => { let p; return async () => { if (p) return p; try { const s = window.claude && window.claude.use ? await window.claude.use("sample") : null; if (typeof s === "function") p = s; } catch {} return p || null; }; })();
+const zact = async (kind, x, btn, msg) => {
+const z = d.zernio, say = (t, c) => { x.zs = { t, c: c || "note" }; msg.className = c || "note"; msg.textContent = t; }, cp = (t, c) => { copy(zcmd(kind, x), btn); if (t) say(t, c); };
+const m = await mcpOf(); if (!m) return cp(T("zNoBridge")); if (!z.id) return cp(T("zNoId"));
+const upd = kind === "upd", del = kind === "del", sv = z.server || "Zernio", tl = Object.assign({ create: "posts_create", update: "posts_update", delete: "posts_delete" }, z.tools)[upd ? "update" : del ? "delete" : "create"];
+if ((!del && x.reply_control && x.reply_control !== "everyone") || (kind === "sched" && !x.when) || (upd && (x.parts || []).length)) return cp(T("zManual"));
+let sc = ""; try { sc = JSON.stringify((await m.describeTool(sv, tl)).inputSchema || {}); } catch {}
+const key = ["postId", "post_id", "id"].find((k) => sc.includes('"' + k + '"')) || "postId";
+if (sc && ((!del && !sc.includes('"content"')) || (!upd && !del && !sc.includes('"platforms"')))) return cp(T("zManual"));
+const txt = String(x.text || "").trim(), th = (x.parts || []).length ? [x.text, ...x.parts].map((c) => ({ content: String(c).trim() })) : null, pl = { platform: "threads", accountId: z.id }, pd = {};
+if (th) pd.threadItems = th; if (x.tag) pd.topic_tag = x.tag; if (th || x.tag) pl.platformSpecificData = pd;
+const at = x.when ? new Date(x.when).toISOString() : "", im = x.image && safeUrl(x.image.url);
+const inp = del ? { [key]: x.zid } : upd ? { [key]: x.zid, content: txt, ...(at ? { scheduledFor: at } : {}) } : { content: txt, platforms: [pl], ...(im ? { mediaItems: [{ type: "image", url: im }] } : {}), ...(kind === "post" ? { publishNow: true } : kind === "sched" ? { scheduledFor: at } : { isDraft: true }) };
+btn.disabled = true; say(T("zSending"));
+const fin = (r) => {
+const p = r.payload ?? r.structuredContent ?? r.content, s = typeof p === "string" ? p : JSON.stringify(p || {}), st = (/"status"\s*:\s*"([a-z_]+)"/i.exec(s) || [])[1] || "";
+const id = p && (p._id || p.id || p.postId || (p.post && (p.post._id || p.post.id))), url = (/https:\/\/www\.threads\.(?:com|net)\/[^"\s\\]+/.exec(s) || [])[0];
+if (r.isError || /^(failed|error|partial)$/i.test(st)) say(T("zFail") + s.slice(0, 220), "err");
+else if (del) { d.drafts = d.drafts.filter((y) => y !== x); render(); }
+else if (upd) say(T("zUpdated"));
+else if (kind === "post") { if (st === "published" || url) { x.sent = 1; say(T("zPosted") + (url ? " " + url : "")); } else say(T("zUnsure"), "wrn"); }
+else if (id) { x.zid = String(id); say(T("zSaved")); render(); } else say(T("zSaved"));
+};
+const assist = async (why) => {
+const sm = await smpOf(); if (!sm) return false;
+let n = 0, got = null;
+const tools = [{ name: "describe", description: "Read the input schema of the Zernio tool", inputSchema: { type: "object", properties: {} }, execute: async () => m.describeTool(sv, tl) },
+{ name: "send", description: "Call the Zernio tool with this input", inputSchema: { type: "object", properties: { input: { type: "object" } }, required: ["input"] }, execute: async (a) => {
+const j = JSON.stringify((a && a.input) || {});
+if (got || n >= 2) throw new Error("no more calls");
+if (!del && !j.includes(txt.slice(0, 30))) throw new Error("the post text must stay exactly as given");
+if (kind !== "post" && /publishNow\W+true/i.test(j)) throw new Error("this action must not publish now");
+n++; got = await m.callTool(sv, tl, a.input); return got; } }];
+await sm("Zernio refused this " + kind + " request (" + why + "). Rejected input: " + JSON.stringify(inp) + "\nCall describe to read the tool's input schema, then call send with a corrected input that keeps the same text, account and action (" + (kind === "post" ? "publish now" : kind === "sched" ? "schedule at " + at : kind === "draft" ? "save as draft" : kind) + "). Never change the text. Reply ok when done.", { tools, modelTier: "quick", cache: false });
+if (got) { fin(got); return true; } return false;
+};
+try { fin(await m.callTool(sv, tl, inp)); } catch (e) {
+const c = e && e.code;
+if (c === "needs_reauth") say(T("zReauth"), "err");
+else if (c === "tool_error") { const why = String(e.message || "").slice(0, 160); say(T("zAsk")); let ok = false; try { ok = await assist(why); } catch {} if (!ok) cp(T("zRej", { m: why }), "err"); }
+else if (["server_not_connected", "not_in_manifest", "blocked_by_policy", "approval_required", "selection_required", "consent_required", "capability_disabled"].includes(c)) cp(T("zManual") + " [" + c + "]");
+else say(T("zUnsure"), "wrn");
+} finally { btn.disabled = !!x.sent; }
+};
 const draftCard = (x) => {
-const cnt = h("span", { class: "cnt" }), errs = h("div"), parts = h("div");
+const cnt =h("span", { class: "cnt" }), errs = h("div"), parts = h("div");
 const a = h("a", { class: "btn go", target: "_blank", rel: "noopener noreferrer" }, T("post"));
-const tag = h("input", { type: "text", value: x.tag || "", placeholder: T("tag"), maxlength: 60, "aria-label": T("tag") });
+const zmsg = h("div", { class: x.zs ? x.zs.c : "note", role: "status" }, x.zs ? x.zs.t : "");
+const zb = (label, kind, cls = "s") => { let armed = 0; return h("button", { class: cls, type: "button", onclick: (e) => { if (kind === "del" && !armed) { const b = e.currentTarget; armed = 1; b.textContent = T("sure"); setTimeout(() => { armed = 0; b.textContent = label; }, 4000); return; } zact(kind, x, e.currentTarget, zmsg); } }, label); };
+const zp = zb(T("zNow"), "post", "go");
+const wIn = h("input", { type: "datetime-local", "aria-label": T("zWhen") }), pad = (n) => String(n).padStart(2, "0");
+if (x.when) { const q = TS.parts(Date.parse(x.when), d.tz); wIn.value = q.date + "T" + pad(q.hour) + ":" + pad(q.minute); }
+wIn.addEventListener("change", () => { const w = /^(\d{4}-\d\d-\d\d)T(\d\d):(\d\d)$/.exec(wIn.value); if (w) x.when = new Date(TS.toUtc(w[1], +w[2], +w[3], d.tz)).toISOString(); else delete x.when; });
+const tag =h("input", { type: "text", value: x.tag || "", placeholder: T("tag"), maxlength: 60, "aria-label": T("tag") });
 const rc = h("select", { "aria-label": T("reply") }, TS.REPLY.map((v, i) => h("option", { value: v }, T(["every", "acc", "men", "fol"][i]))));
 rc.value = x.reply_control || "everyone";
 const refresh = () => {
@@ -313,7 +364,7 @@ const e = TS.lintDraft([x.text, ...(x.parts || [])], x.tag || "", !!x.image), n 
 cnt.textContent = n + "/500"; cnt.className = "cnt" + (n > 500 ? " over" : "");
 set(errs, e.map((c) => h("div", { class: "err" }, T("e_" + c))), [x.text, ...(x.parts || [])].some((t) => /\[ISI:/i.test(t)) && h("div", { class: "wrn" }, T("e_blank")));
 a.setAttribute("href", e.length ? "#" : TS.intentUrl(x.text, { tag: x.tag, reply_control: x.reply_control }));
-a.className = "btn go" + (e.length ? " off" : "");
+a.className = "btn go" + (e.length ? " off" : ""); zp.disabled = e.length > 0 || !!x.sent;
 if (x.parts && x.parts.length) {
 const sc = h("input", { type: "text", value: x.p1 || "", placeholder: "https://www.threads.com/@.../post/...", "aria-label": T("p1") }), links = h("div", { class: "row", style: "margin-top:6px" });
 const draw = () => { const code = TS.shortcodeOf(x.p1 || ""); set(links, code ? x.parts.map((p, i) => h("a", { class: "btn s", target: "_blank", rel: "noopener noreferrer", href: TS.intentUrl(p, { reply_post_shortcode: code, reply_control: x.reply_control }) }, T("postPart", { n: i + 2 }))) : []); };
@@ -330,9 +381,9 @@ const del = h("button", { class: "s warn", type: "button", onclick: (e) => { if 
 const done = h("button", { class: "s", type: "button", onclick: () => { d.posts.push({ id: uid(), at: now().toISOString(), text: x.text }); d.drafts = d.drafts.filter((y) => y !== x); render(); } }, T("posted"));
 const card = h("div", { class: "card" }, h("div", { class: "row between" }, x.when ? h("span", { class: "chip b" }, fmt(x.when)) : h("span"), cnt), ta, pts,
 h("div", { class: "row", style: "margin-top:6px" }, h("div", { style: "flex:1;min-width:120px" }, tag), h("div", { style: "flex:1;min-width:120px" }, rc)), errs, parts, imgBlock(x), !x.image && h("div", { class: "row", style: "margin-top:8px" }, cbtn(T("askPoster"), () => T("pPoster", { t: TS.hookOf(x.text) || "..." }))),
-h("div", { class: "row", style: "margin-top:8px" }, !x.zid && a, cbtn(T("copy"), () => x.text), !x.zid && cbtn(T("link"), () => a.getAttribute("href")), done, del), // a draft already in Zernio must not also offer the manual post button (a second post)
-d.zernio && h("div", { class: "zrow", style: "margin-top:10px;padding-top:8px;border-top:1px solid var(--line,#ddd)" }, h("div", { class: "note" }, T("zHint")),
-h("div", { class: "row", style: "margin-top:6px" }, ...(x.zid ? [cbtn(T("zUpd"), () => zcmd("upd", x), "go"), cbtn(T("zDel"), () => zcmd("del", x), "s warn")] : [cbtn(T("zPost"), () => zcmd("post", x), "go"), cbtn(T("zSched"), () => zcmd("sched", x)), cbtn(T("zDraft"), () => zcmd("draft", x))]))));
+h("div", { class: "row", style: "margin-top:8px" }, !x.zid && (d.zernio ? zp : a), cbtn(T("copy"), () => x.text), !x.zid && !d.zernio && cbtn(T("link"), () => a.getAttribute("href")), done, del), // a draft already in Zernio must not also offer a post button (a second post); with Zernio on, nothing opens the Threads composer
+d.zernio && h("div", { class: "zrow", style: "margin-top:10px;padding-top:8px;border-top:1px solid var(--line,#ddd)" }, h("div", { class: "note" }, T("zHint")), !x.zid && h("div", { class: "row", style: "margin-top:6px" }, h("span", { class: "note" }, T("zWhen")), wIn),
+h("div", { class: "row", style: "margin-top:6px" }, ...(x.zid ? [zb(T("zUpd"), "upd", "go"), zb(T("zDel"), "del", "s warn")] : [zb(T("zSched"), "sched"), zb(T("zDraft"), "draft")])), zmsg));
 refresh();
 return card;
 };
